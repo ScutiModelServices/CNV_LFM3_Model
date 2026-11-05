@@ -81,7 +81,9 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
     many answers per replica (LFM3_CACHE_SIZE). `config` (the admin page's settings) replaces `warm`, `check_hours`,
     `max_inflight` and `cache_size` and keeps them live; without it they stay fixed."""
     tokens = tokens or TokenStore(os.environ.get("LFM3_TOKENS_FILE", "tokens.json"))
-    client = client or engine_from_env("LFM3_", LFM3Engine, DEFAULT_MODEL, marker=default_marker()) or LFM3Engine(
+    client = client or engine_from_env("LFM3_", LFM3Engine, DEFAULT_MODEL, marker=default_marker(),
+                                       thinking=config.get("thinking") if config else None,
+                                       hide_reasoning=config.get("hide_reasoning") if config else None) or LFM3Engine(
         config.get("model") if config else os.environ.get("LFM3_MODEL", DEFAULT_MODEL),
         dtype=config.get("dtype") if config else "bfloat16", marker=default_marker())
     inflight = 0
@@ -388,7 +390,8 @@ def main() -> None:
     store = TokenStore(os.environ.get("LFM3_TOKENS_FILE", "tokens.json"))
     config = settings.Config(store.settings_path, SETTINGS)
     client = engine_from_env("LFM3_", LFM3Engine, DEFAULT_MODEL, projects_dir=config.get("project_models_dir"),
-                             max_projects=config.get("max_project_models"), marker=default_marker()) or LFM3Engine(
+                             max_projects=config.get("max_project_models"), marker=default_marker(),
+                             thinking=config.get("thinking"), hide_reasoning=config.get("hide_reasoning")) or LFM3Engine(
         config.get("model"), projects_dir=config.get("project_models_dir"),
         max_projects=config.get("max_project_models"), dtype=config.get("dtype"), marker=default_marker())
     saved = settings.load(store.settings_path)
