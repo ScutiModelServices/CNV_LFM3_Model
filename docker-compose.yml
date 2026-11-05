@@ -14,6 +14,9 @@ services:
       LFM3_ADMIN_PASSWORD: ${LFM3_ADMIN_PASSWORD:-}
       LFM3_NUM_THREAD: ${LFM3_NUM_THREAD:-}
       LFM3_REPLICAS: ${LFM3_REPLICAS:-1}  # shown read-only on /admin/
+      LFM3_OLLAMA_URL: ${LFM3_OLLAMA_URL:-}  # set = answer through this Ollama (GGUF) instead of torch
+      LFM3_OLLAMA_MODEL: ${LFM3_OLLAMA_MODEL:-}
+    extra_hosts: ["host.docker.internal:host-gateway"]  # reaches an Ollama running on the host
     volumes:
       - models:/models
       - tokens:/data
