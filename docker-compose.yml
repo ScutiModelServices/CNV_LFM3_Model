@@ -1,52 +1,62 @@
 # LFM3 service: N API replicas behind one nginx address. Each replica runs the model in its own process,
 # so RAM use is per replica; the downloaded weights are shared through the models volume.
-# Start:  docker compose up -d --build          (callers use http://<host>:9170)
-# Scale:  LFM3_REPLICAS=3 docker compose up -d --build, then: docker compose restart lfm3_lb
+# Start:  docker compose up -d --build          (callers use http://<host>:29202)
+# Scale:  SERVICE_REPLICAS=3 docker compose up -d --build, then: docker compose restart cnv_lfm3_model_lb
 
-name: lfm3
+name: cnv_lfm3_model
 
 services:
-  lfm3:
+  cnv_lfm3_model:
     build: .
+    image: cnv_lfm3_model:latest
     restart: unless-stopped
-    mem_limit: ${LFM3_MEM_LIMIT:-0}  # 0 = no cap; a cap makes an out-of-memory kill stay inside this container
+    mem_limit: ${SERVICE_MEM_LIMIT:-0}  # 0 = no cap; a cap makes an out-of-memory kill stay inside this container
     environment:
-      LFM3_ADMIN_PASSWORD: ${LFM3_ADMIN_PASSWORD:-}
-      LFM3_NUM_THREAD: ${LFM3_NUM_THREAD:-}
-      LFM3_REPLICAS: ${LFM3_REPLICAS:-1}  # shown read-only on /admin/
-      LFM3_OLLAMA_URL: ${LFM3_OLLAMA_URL:-}  # set = answer through this Ollama (GGUF) instead of torch
-      LFM3_OLLAMA_MODEL: ${LFM3_OLLAMA_MODEL:-}
-      LFM3_THINKING: ${LFM3_THINKING:-}  # off (default) or on, Ollama backend
-      LFM3_HIDE_REASONING: ${LFM3_HIDE_REASONING:-}  # empty = on
+      SERVICE_ADMIN_PASSWORD: ${SERVICE_ADMIN_PASSWORD:-}
+      SERVICE_NUM_THREAD: ${SERVICE_NUM_THREAD:-}
+      SERVICE_REPLICAS: ${SERVICE_REPLICAS:-1}  # shown read-only on /admin/
+      SERVICE_OLLAMA_URL: ${SERVICE_OLLAMA_URL:-}  # set = answer through this Ollama (GGUF) instead of torch
+      SERVICE_OLLAMA_MODEL: ${SERVICE_OLLAMA_MODEL:-}
+      SERVICE_THINKING: ${SERVICE_THINKING:-}  # off (default) or on, Ollama backend
+      SERVICE_HIDE_REASONING: ${SERVICE_HIDE_REASONING:-}  # empty = on
     extra_hosts: ["host.docker.internal:host-gateway"]  # reaches an Ollama running on the host
     volumes:
-      - models:/models
-      - tokens:/data
+      - cnv_lfm3_model_models:/models
+      - cnv_lfm3_model_data:/data
     deploy:
-      replicas: ${LFM3_REPLICAS:-1}
+      replicas: ${SERVICE_REPLICAS:-1}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9170/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:29202/health')"]
       interval: 15s
       timeout: 5s
       start_period: 300s
-    networks: [lfm3]
+    networks: [cnv_lfm3_model]
 
-  lfm3_lb:
+  cnv_lfm3_model_lb:
+    container_name: cnv_lfm3_model_lb
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "${LFM3_PORT:-9170}:9170"
+      - "${SERVICE_PORT:-29202}:29202"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      lfm3:
+      cnv_lfm3_model:
         condition: service_healthy
-    networks: [lfm3]
+    networks:
+      cnv_lfm3_model:
+      citadel:
+        aliases: [cnv_lfm3_model_lb]
 
 volumes:
-  models:
-  tokens:
-
+  cnv_lfm3_model_models:
+    name: cnv_lfm3_model_models
+  cnv_lfm3_model_data:
+    name: cnv_lfm3_model_data
 networks:
-  # Other stacks reach http://lfm3_lb:9170 by joining this network.
-  lfm3:
+  # Other stacks reach http://cnv_lfm3_model_lb:29202 by joining this network.
+  cnv_lfm3_model:
+    name: cnv_lfm3_model
+  citadel:
+    name: citadel_core
+    external: true
