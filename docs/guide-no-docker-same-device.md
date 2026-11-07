@@ -1,4 +1,4 @@
-# LFM3Model: without Docker, on Windows
+# CNV_LFM3_Model: without Docker, on Windows
 
 Run Liquid LFM3-1.7B on the CPU directly with Python: one process, no load balancer, listening on `127.0.0.1:9170`.
 
@@ -8,12 +8,12 @@ Run Liquid LFM3-1.7B on the CPU directly with Python: one process, no load balan
 - RAM for the model (one copy).
 
 ## Start
-Double-click `run.bat`, or run it in a terminal from `LFM3Model\`. Choose **1 Run the service** in the menu, or run `run.bat run` to skip the menu. It runs `uv sync` to create or update `.venv`, then starts
+Double-click `run.bat`, or run it in a terminal from `CNV_LFM3_Model\`. Choose **1 Run the service** in the menu, or run `run.bat run` to skip the menu. It runs `uv sync` to create or update `.venv`, then starts
 `python src/app.py`. The first start downloads about 4 GB of weights.
 
 Linux or macOS:
 ```bash
-cd LFM3Model
+cd CNV_LFM3_Model
 uv sync
 uv run python src/app.py
 ```

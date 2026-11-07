@@ -1,7 +1,7 @@
-# Deploying LFM3Model
+# Deploying CNV_LFM3_Model
 
-LFM3Model is one HTTP service (port 9170). It runs as `lfm3` replicas behind an nginx load balancer,
-`lfm3_lb`. Callers use `http://<host>:9170`; they never reach a replica directly.
+CNV_LFM3_Model is one HTTP service (port 9170). It runs as `cnv_lfm3_model` replicas behind an nginx load balancer,
+`cnv_lfm3_model_lb`. Callers use `http://<host>:9170`; they never reach a replica directly.
 
 ## Ways to run it
 

@@ -1,4 +1,4 @@
-# LFM3Model: Docker Desktop on this PC
+# CNV_LFM3_Model: Docker Desktop on this PC
 
 Run Liquid LFM3-1.7B on the CPU in Docker Desktop on the machine you work on, so other programs on it can call it.
 
@@ -12,7 +12,7 @@ Run Liquid LFM3-1.7B on the CPU in Docker Desktop on the machine you work on, so
 
 ## Steps
 
-1. Configure. In `LFM3Model/`:
+1. Configure. In `CNV_LFM3_Model/`:
    ```bash
    cp .env.example .env
    ```
@@ -21,8 +21,8 @@ Run Liquid LFM3-1.7B on the CPU in Docker Desktop on the machine you work on, so
    ```bash
    docker compose up -d --build
    ```
-   The first start downloads about 4 GB of weights into the `models` volume. `lfm3_lb` starts only after the service is healthy
-   (up to 300 s grace). Watch with `docker compose ps` and `docker compose logs -f lfm3`.
+   The first start downloads about 4 GB of weights into the `cnv_lfm3_model_models` volume. `cnv_lfm3_model_lb` starts only after the service is healthy
+   (up to 300 s grace). Watch with `docker compose ps` and `docker compose logs -f cnv_lfm3_model`.
 3. Check:
    ```bash
    curl http://127.0.0.1:9170/health
@@ -44,9 +44,9 @@ In `.env` next to `docker-compose.yml`:
 
 | Variable | Default | Effect |
 |---|---|---|
-| `LFM3_REPLICAS` | `1` | Number of `lfm3` containers. Read by Compose. |
+| `LFM3_REPLICAS` | `1` | Number of `cnv_lfm3_model` containers. Read by Compose. |
 | `LFM3_MEM_LIMIT` | `0` (no cap) | RAM cap per container, for example `7g` (bfloat16 weights use about 5.3 GiB). An out-of-memory kill then stays in the container instead of starving the host. Read by Compose. |
-| `LFM3_PORT` | `9170` | Host port `lfm3_lb` publishes. |
+| `LFM3_PORT` | `9170` | Host port `cnv_lfm3_model_lb` publishes. |
 | `LFM3_ADMIN_PASSWORD` | empty | Password for `/admin/`. When set, every call except `/health` must send a project token as `X-Internal-Token`. Empty = no auth. |
 | `LFM3_NUM_THREAD` | torch decides | Starting value for the CPU threads card; a value saved on `/admin/` wins. Use the number of physical cores (`lscpu`: cores x sockets), not logical CPUs; more threads than cores slows every call. |
 
@@ -55,15 +55,15 @@ value beats the environment variable named in brackets): update check hours (`LF
 in-flight cap (`LFM3_MAX_INFLIGHT`, 0 = 4), answers kept per replica (`LFM3_CACHE_SIZE`, 256, 0 = off), project models loaded per replica (`LFM3_MAX_PROJECT_MODELS`, 2),
 project models folder (`LFM3_PROJECT_MODELS_DIR`, empty = off; in Docker use `/models/projects`), base model
 (`LFM3_MODEL`, restart), number format (`LFM3_DTYPE`, restart: `bfloat16` or `float32`; try `float32` if answers take many seconds on a CPU without native bfloat16 maths, it needs twice the RAM) and load at start (`LFM3_WARM`, restart). Compose does not pass these; add the variable
-under `environment:` of `lfm3` to use one as a starting value.
+under `environment:` of `cnv_lfm3_model` to use one as a starting value.
 
 ## Daily use
 
 ```bash
 docker compose ps          # state
-docker compose logs -f lfm3
+docker compose logs -f cnv_lfm3_model
 docker compose down        # stop (the weights volume is kept)
-docker compose up -d --build && docker compose restart lfm3_lb   # after a code change
+docker compose up -d --build && docker compose restart cnv_lfm3_model_lb   # after a code change
 ```
 
 ## Problems
@@ -71,12 +71,14 @@ docker compose up -d --build && docker compose restart lfm3_lb   # after a code 
 | Symptom | Fix |
 |---|---|
 | `address already in use` on 9170 | Another copy (`run.bat`, or the same stack on another compose project) is running. Stop it or change `LFM3_PORT`. |
-| `/health` shows `ready: false` for minutes | First start: the weights are downloading or loading. Check `docker compose logs -f lfm3`. |
+| `/health` shows `ready: false` for minutes | First start: the weights are downloading or loading. Check `docker compose logs -f cnv_lfm3_model`. |
 | 401 Invalid token | The caller's token is missing or revoked; make one on `/admin/`. |
 | Container restarts in a loop | Out of RAM. Raise the Docker Desktop memory limit or lower the replica count. |
-| `lfm3_lb` never starts | No replica is healthy yet (first download, or out of memory). `docker compose logs lfm3`. |
+| `cnv_lfm3_model_lb` never starts | No replica is healthy yet (first download, or out of memory). `docker compose logs cnv_lfm3_model`. |
 | Replicas restart in a loop | Out of RAM. Lower `LFM3_REPLICAS`. |
 | 422 on `tools`, `schema` or `thinking` | Not supported by this service. |
 | 429 | Over the token's rate limit, or too many calls waiting for the model. |
 | Slow answers | CPU speed with `transformers` is modest for any model of this size; use a 4-bit GGUF runtime if speed matters. Raise CPU threads on `/admin/`. |
-| nginx 502 after scaling | `lfm3_lb` not restarted after the replica count changed. |
+| nginx 502 after scaling | `cnv_lfm3_model_lb` not restarted after the replica count changed. |
+
+The load balancer also joins external `citadel_core` as `cnv_lfm3_model_lb`. Start the Citadel stack first so that network exists; tool services on it use `http://cnv_lfm3_model_lb:9170`. Docker project and API image are `cnv_lfm3_model` and `cnv_lfm3_model:latest`; persistent volumes have explicit `cnv_lfm3_model_*` names. Volume migration and rollback instructions are in [CHANGELOG.md](../CHANGELOG.md).

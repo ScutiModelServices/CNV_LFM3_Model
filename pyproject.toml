@@ -1,5 +1,5 @@
 [project]
-name = "lfm3-service"
+name = "cnv_lfm3_model"
 description = "One HTTP service that runs LFM3-1.7B on the CPU for every project"
 version = "0.1.0"
 license = "MIT"
