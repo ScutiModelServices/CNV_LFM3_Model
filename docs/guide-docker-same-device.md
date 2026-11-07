@@ -3,11 +3,15 @@
 Run Liquid LFM3-1.7B on the CPU in Docker Desktop on the machine you work on, so other programs on it can call it.
 
 ## Requirements
+
 - Docker Desktop with Compose v2 (Windows: WSL2 backend).
-- RAM for the model **per replica**. Keep `LFM3_REPLICAS=1` on a PC. Docker Desktop on Windows caps its engine at about half of your RAM unless you raise it in `.wslconfig`.
-- Internet on the first start (about 4 GB of weights).
+- About 5 GB of RAM **per replica** (each replica holds the model), plus the same again for every loaded
+  project model. Keep `LFM3_REPLICAS=1` on a PC. Docker Desktop on Windows caps its engine at about half of your RAM unless you raise it in `.wslconfig`.
+- Network access on the first start to download the weights (about 4 GB) from Hugging Face.
+- CPU only. The Dockerfile installs the CPU build of torch and fails the build if a CUDA or ROCm build is found.
 
 ## Steps
+
 1. Configure. In `LFM3Model/`:
    ```bash
    cp .env.example .env
@@ -34,7 +38,27 @@ Run Liquid LFM3-1.7B on the CPU in Docker Desktop on the machine you work on, so
    - Caller on the host: `http://127.0.0.1:9170`.
    - Caller in another Docker stack on the same host: `http://host.docker.internal:9170`.
 
+## Settings
+
+In `.env` next to `docker-compose.yml`:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `LFM3_REPLICAS` | `1` | Number of `lfm3` containers. Read by Compose. |
+| `LFM3_MEM_LIMIT` | `0` (no cap) | RAM cap per container, for example `7g` (bfloat16 weights use about 5.3 GiB). An out-of-memory kill then stays in the container instead of starving the host. Read by Compose. |
+| `LFM3_PORT` | `9170` | Host port `lfm3_lb` publishes. |
+| `LFM3_ADMIN_PASSWORD` | empty | Password for `/admin/`. When set, every call except `/health` must send a project token as `X-Internal-Token`. Empty = no auth. |
+| `LFM3_NUM_THREAD` | torch decides | Starting value for the CPU threads card; a value saved on `/admin/` wins. Use the number of physical cores (`lscpu`: cores x sockets), not logical CPUs; more threads than cores slows every call. |
+
+On the **Settings** card of `/admin/` (saved in `settings.json` beside the tokens, shared by all replicas; a saved
+value beats the environment variable named in brackets): update check hours (`LFM3_UPDATE_CHECK_HOURS`, 6),
+in-flight cap (`LFM3_MAX_INFLIGHT`, 0 = 4), answers kept per replica (`LFM3_CACHE_SIZE`, 256, 0 = off), project models loaded per replica (`LFM3_MAX_PROJECT_MODELS`, 2),
+project models folder (`LFM3_PROJECT_MODELS_DIR`, empty = off; in Docker use `/models/projects`), base model
+(`LFM3_MODEL`, restart), number format (`LFM3_DTYPE`, restart: `bfloat16` or `float32`; try `float32` if answers take many seconds on a CPU without native bfloat16 maths, it needs twice the RAM) and load at start (`LFM3_WARM`, restart). Compose does not pass these; add the variable
+under `environment:` of `lfm3` to use one as a starting value.
+
 ## Daily use
+
 ```bash
 docker compose ps          # state
 docker compose logs -f lfm3
@@ -43,10 +67,16 @@ docker compose up -d --build && docker compose restart lfm3_lb   # after a code 
 ```
 
 ## Problems
+
 | Symptom | Fix |
 |---|---|
 | `address already in use` on 9170 | Another copy (`run.bat`, or the same stack on another compose project) is running. Stop it or change `LFM3_PORT`. |
 | `/health` shows `ready: false` for minutes | First start: the weights are downloading or loading. Check `docker compose logs -f lfm3`. |
 | 401 Invalid token | The caller's token is missing or revoked; make one on `/admin/`. |
-
 | Container restarts in a loop | Out of RAM. Raise the Docker Desktop memory limit or lower the replica count. |
+| `lfm3_lb` never starts | No replica is healthy yet (first download, or out of memory). `docker compose logs lfm3`. |
+| Replicas restart in a loop | Out of RAM. Lower `LFM3_REPLICAS`. |
+| 422 on `tools`, `schema` or `thinking` | Not supported by this service. |
+| 429 | Over the token's rate limit, or too many calls waiting for the model. |
+| Slow answers | CPU speed with `transformers` is modest for any model of this size; use a 4-bit GGUF runtime if speed matters. Raise CPU threads on `/admin/`. |
+| nginx 502 after scaling | `lfm3_lb` not restarted after the replica count changed. |
