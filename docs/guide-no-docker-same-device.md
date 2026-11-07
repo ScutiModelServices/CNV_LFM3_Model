@@ -1,6 +1,6 @@
 # CNV_LFM3_Model: without Docker, on Windows
 
-Run Liquid LFM3-1.7B on the CPU directly with Python: one process, no load balancer, listening on `127.0.0.1:9170`.
+Run Liquid LFM3-1.7B on the CPU directly with Python: one process, no load balancer, listening on `127.0.0.1:29202`.
 
 ## Requirements
 - Windows with Python 3.11 or newer and uv (`winget install astral-sh.uv`).
@@ -24,7 +24,7 @@ uv run python src/app.py
 | Variable | Default | Effect |
 |---|---|---|
 | `LFM3_HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` only if other devices must reach it. |
-| `LFM3_PORT` | `9170` | Port. |
+| `LFM3_PORT` | `29202` | Port. |
 | `LFM3_ADMIN_PASSWORD` | empty | Unlocks `/admin/` and requires tokens on every call but `/health`. Empty = no auth. |
 | `LFM3_WARM` | `1` | Load the model at start; with `0` the first request pays the load time. |
 | `LFM3_NUM_THREAD` | the library decides | CPU threads. Set it to the number of **physical** cores. |
@@ -34,16 +34,16 @@ Bash: `LFM3_ADMIN_PASSWORD=secret uv run python src/app.py`
 
 ## Check
 ```bash
-curl http://127.0.0.1:9170/health
+curl http://127.0.0.1:29202/health
 ```
-`ready` is `false` until the model has loaded. Then open `http://127.0.0.1:9170/admin/` (see [guide-web-ui.md](guide-web-ui.md)),
+`ready` is `false` until the model has loaded. Then open `http://127.0.0.1:29202/admin/` (see [guide-web-ui.md](guide-web-ui.md)),
 make a token, and try a call:
 ```bash
-curl -X POST http://127.0.0.1:9170/v1/chat -H "Content-Type: application/json" -H "X-Internal-Token: lfm3_..." -d '{"messages":[{"role":"user","content":"Say hello in one sentence."}]}'
+curl -X POST http://127.0.0.1:29202/v1/chat -H "Content-Type: application/json" -H "X-Internal-Token: lfm3_..." -d '{"messages":[{"role":"user","content":"Say hello in one sentence."}]}'
 ```
 
 ## Stop
-Ctrl+C in the terminal. Do not run this and the Docker stack together: both use port 9170.
+Ctrl+C in the terminal. Do not run this and the Docker stack together: both use port 29202.
 
 ## Tests
 `uv run pytest`.

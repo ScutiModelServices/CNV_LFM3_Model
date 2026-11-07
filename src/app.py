@@ -409,7 +409,7 @@ def main() -> None:
         client.num_thread = int(threads)
     app = create_app(client=client, admin_password=os.environ.get("LFM3_ADMIN_PASSWORD") or None,
                      tokens=store, config=config)
-    uvicorn.run(app, host=os.environ.get("LFM3_HOST", "127.0.0.1"), port=int(os.environ.get("LFM3_PORT", "9170")))
+    uvicorn.run(app, host=os.environ.get("LFM3_HOST", "127.0.0.1"), port=int(os.environ.get("LFM3_PORT", "29202")))
 
 
 if __name__ == "__main__":

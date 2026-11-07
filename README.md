@@ -50,10 +50,10 @@ the shared models volume; the other replicas notice within a few seconds and loa
 ## Run
 
 ```bash
-docker compose up -d --build        # http://<host>:9170
+docker compose up -d --build        # http://<host>:29202
 ```
 
-Without Docker: `run.bat` (uv, listens on `127.0.0.1:9170`). The first start downloads about 4 GB. Each replica holds
+Without Docker: `run.bat` (uv, listens on `127.0.0.1:29202`). The first start downloads about 4 GB. Each replica holds
 the model in RAM (about 5 GB), so `LFM3_REPLICAS` multiplies memory use. See `deployment.md`.
 
 ## Tests
