@@ -23,14 +23,14 @@ uv run python src/app.py
 
 | Variable | Default | Effect |
 |---|---|---|
-| `LFM3_HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` only if other devices must reach it. |
-| `LFM3_PORT` | `29202` | Port. |
-| `LFM3_ADMIN_PASSWORD` | empty | Unlocks `/admin/` and requires tokens on every call but `/health`. Empty = no auth. |
-| `LFM3_WARM` | `1` | Load the model at start; with `0` the first request pays the load time. |
-| `LFM3_NUM_THREAD` | the library decides | CPU threads. Set it to the number of **physical** cores. |
+| `SERVICE_HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` only if other devices must reach it. |
+| `SERVICE_PORT` | `29202` | Port. |
+| `SERVICE_ADMIN_PASSWORD` | empty | Unlocks `/admin/` and requires tokens on every call but `/health`. Empty = no auth. |
+| `SERVICE_WARM` | `1` | Load the model at start; with `0` the first request pays the load time. |
+| `SERVICE_NUM_THREAD` | the library decides | CPU threads. Set it to the number of **physical** cores. |
 
-PowerShell: `$env:LFM3_ADMIN_PASSWORD = "secret"; .\run.bat`
-Bash: `LFM3_ADMIN_PASSWORD=secret uv run python src/app.py`
+PowerShell: `$env:SERVICE_ADMIN_PASSWORD = "secret"; .\run.bat`
+Bash: `SERVICE_ADMIN_PASSWORD=secret uv run python src/app.py`
 
 ## Check
 ```bash

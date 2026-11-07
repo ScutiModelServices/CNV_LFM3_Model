@@ -6,7 +6,7 @@ Run Liquid LFM3-1.7B on the CPU on a separate always-on machine (default `lex@sc
 ## Requirements on the machine
 
 - Docker + Compose v2, and ssh access (root over ssh is refused; use the normal user).
-- Enough RAM for the model times `LFM3_REPLICAS`.
+- Enough RAM for the model times `SERVICE_REPLICAS`.
 
 ## 1. Publish the code (from your PC)
 
@@ -32,9 +32,9 @@ git clone -b live <your-repo-url> /media/ZimaOS-HD/Apps/CNV_LFM3_Model
 cd /media/ZimaOS-HD/Apps/CNV_LFM3_Model
 ```
 Create `.env` (deploy option 2 copies yours, or `cp .env.example .env` and edit):
-- `LFM3_ADMIN_PASSWORD`: a real password.
-- `LFM3_REPLICAS=1` unless you have the memory for more.
-- `LFM3_PORT=29202` (published on all interfaces; firewall it if the LAN should not reach it, or bind it to
+- `SERVICE_ADMIN_PASSWORD`: a real password.
+- `SERVICE_REPLICAS=1` unless you have the memory for more.
+- `SERVICE_PORT=29202` (published on all interfaces; firewall it if the LAN should not reach it, or bind it to
   `127.0.0.1` in the `ports:` line of `cnv_lfm3_model_lb` when only callers on the machine need it).
 
 ## 3. Start
@@ -62,7 +62,7 @@ The first start downloads about 4 GB of weights into the `cnv_lfm3_model_models`
 ## Scaling
 
 ```bash
-LFM3_REPLICAS=3 docker compose up -d --build
+SERVICE_REPLICAS=3 docker compose up -d --build
 docker compose restart cnv_lfm3_model_lb
 ```
 

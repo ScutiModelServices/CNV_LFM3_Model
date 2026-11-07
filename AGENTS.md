@@ -1,6 +1,6 @@
 # CNV_LFM3_Model
 
-Liquid LFM3-1.7B served over HTTP, behind the shared model-service admin page, tokens and settings. Port 29202, env prefix `LFM3_`, token prefix `lfm3_`.
+Liquid LFM3-1.7B served over HTTP, behind the shared model-service admin page, tokens and settings. Port 29202, env prefix `SERVICE_`, token prefix `lfm3_`.
 
 ## Agent instructions
 This file is the one instruction file for every coding agent; `CLAUDE.md` only imports it (`@AGENTS.md`). Edit this file, never `CLAUDE.md`.
