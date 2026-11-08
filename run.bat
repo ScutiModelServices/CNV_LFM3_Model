@@ -1,7 +1,7 @@
 @echo off
-REM Starts the LFM3 service on port 29202 (syncs .venv with uv on each run). The first start downloads the weights (about 4 GB).
+REM Starts the CNV_LFM3_Model service on port 29202 (syncs .venv with uv on each run).
 REM LABEL: LFM3 Service
-REM DESCRIPTION: Shared HTTP service that runs LFM3-1.7B on the CPU for every project.
+REM DESCRIPTION: HTTP chat through Ollama. Local run needs running Ollama with the model pulled.
 cd /d "%~dp0"
 if /i "%~1"=="run" goto run
 if /i "%~1"=="deploy" goto deploy

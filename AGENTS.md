@@ -11,10 +11,10 @@ This file is the one instruction file for every coding agent; `CLAUDE.md` only i
 - Run: `run.bat run`, or `uv run python src/app.py` (add `--dotenv` to load `.env`), or `docker compose up -d --build`
 
 ## Rules
+- Ollama is the only backend (`src/ollama_backend.py`); local URL defaults there, and explicitly empty URLs fail. Run Ollama and pull the configured model before using chat.
+- `num_thread` is saved/reported only; Ollama chooses its threads. Keep injected fake loaders for tests, replica marker invalidation and recoverable 503 errors.
 - Follow the `model-service-parity` skill and `AI/ModelServices/_docs/SHARED-FEATURES.md` (what must match in every model service) and `AI/ModelServices/_docs/SERVICE-SPECIFIC.md` (what differs on purpose). A change to a shared feature goes to every service; a new difference goes into `SERVICE-SPECIFIC.md` in the same change.
 - `web/index.html`, `src/tokens.py`, `src/settings.py`, `src/updates.py` and `.dockerignore` are copies shared with the other model services. Change one, copy it to the others, run `python tools/check_sync.py` in each repo.
-- Built from CNV_BitNet2B_Model (same engine shape, 422 for `tools`, `schema`, `thinking`). Differences: `trust_remote_code`, weights load directly in `dtype`, thinking is switched off through the chat template (`enable_thinking=False`).
-- The model runs code from the Hub: keep the pinned revision and read a new commit before moving it.
 - Behaviour changes update `README.md`, `deployment.md`, `docs/guide-web-ui.md`, `.env.example` and `CHANGELOG.md` in the same commit.
 - Never read or print `.env`, `tokens.json` or `settings.json`.
 - Commit with the noreply author email `214214011+scutiii2@users.noreply.github.com` (another address is rejected on push). Push `main`, then run `python tools/publish_live.py`. Build Docker only when the Dockerfile or the dependencies changed.

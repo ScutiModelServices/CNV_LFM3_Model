@@ -1,12 +1,12 @@
 # CNV_LFM3_Model: Docker on a deployment machine
 
-Run Liquid LFM3-1.7B on the CPU on a separate always-on machine (default `lex@scutiserver1.local`, folder
+Run the LFM3 API with an external Ollama on a separate always-on machine (default `lex@scutiserver1.local`, folder
 `/media/ZimaOS-HD/Apps/CNV_LFM3_Model`). Callers reach it over the published port.
 
 ## Requirements on the machine
 
 - Docker + Compose v2, and ssh access (root over ssh is refused; use the normal user).
-- Enough RAM for the model times `SERVICE_REPLICAS`.
+- A reachable Ollama with the model pulled; API replicas share its model memory.
 
 ## 1. Publish the code (from your PC)
 
@@ -33,7 +33,7 @@ cd /media/ZimaOS-HD/Apps/CNV_LFM3_Model
 ```
 Create `.env` (deploy option 2 copies yours, or `cp .env.example .env` and edit):
 - `SERVICE_ADMIN_PASSWORD`: a real password.
-- `SERVICE_REPLICAS=1` unless you have the memory for more.
+- `SERVICE_REPLICAS=1` initially. Set `SERVICE_OLLAMA_URL` to the reachable Ollama and pull the configured model there first.
 - `SERVICE_PORT=29202` (published on all interfaces; firewall it if the LAN should not reach it, or bind it to
   `127.0.0.1` in the `ports:` line of `cnv_lfm3_model_lb` when only callers on the machine need it).
 
@@ -44,8 +44,7 @@ docker compose up -d --build
 docker compose ps
 curl http://127.0.0.1:29202/health
 ```
-The first start downloads about 4 GB of weights into the `cnv_lfm3_model_models` volume; `cnv_lfm3_model_lb` waits for a healthy service
-(up to 300 s grace).
+Warm-up runs in the background. `/health` and the admin page answer even if Ollama is unavailable; chat returns 503 until the configured model can load.
 
 ## 4. Connect callers
 

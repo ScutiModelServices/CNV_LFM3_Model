@@ -4,15 +4,13 @@
 
 **Group:** Conversation
 
-**Tags:** `cpu`, `streaming`, `project-models`
+**Tags:** `cpu`, `streaming`
 
 | | |
 |---|---|
-| Input | Chat messages, temperature, max tokens, project. |
-| Output | JSON: content, finish reason, usage. Streamable. |
-| Runs on | CPU (`transformers`, LFM3-1.7B). |
+| Input | Chat messages, temperature and maximum tokens. |
+| Output | JSON content, finish reason and usage; NDJSON streaming available. |
+| Runs on | CPU API; inference runs on the external Ollama host with LFM3-1.7B GGUF. API memory has not been measured. |
 
-Same API as BitNet, so callers swap with one config change.
-
-**Use for:** fast everyday replies, A/B comparison against BitNet.
-**Not for:** tool calls, schemas, thinking (all return 422).
+**Use for:** everyday conversation through one shared Ollama model.
+**Not for:** project checkpoint selection, tool calls, schemas or per-request thinking (422).

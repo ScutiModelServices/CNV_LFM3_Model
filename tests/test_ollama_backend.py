@@ -83,7 +83,7 @@ def test_reasoning_written_into_the_answer_is_hidden_and_the_reply_comes_as_one_
 def test_settings_reach_the_loader_and_a_bad_thinking_value_is_refused(url, monkeypatch):
     monkeypatch.setenv("SERVICE_OLLAMA_URL", url)
     engine = engine_from_env("SERVICE_", LFM3Engine, "m", thinking="on", hide_reasoning=False)
-    asyncio.run(engine.chat([{"role": "user", "content": "leak"}], project=None, temperature=0.0, max_tokens=9))
+    asyncio.run(engine.chat([{"role": "user", "content": "leak"}], temperature=0.0, max_tokens=9))
     assert seen[-1][1]["think"] is True
     with pytest.raises(ValueError):
         engine_from_env("SERVICE_", LFM3Engine, "m", thinking="maybe")
@@ -94,13 +94,13 @@ def test_an_unreachable_server_is_an_engine_error():
         OllamaLoaded("http://127.0.0.1:1", "m", load_timeout=1)
 
 
-def test_engine_from_env_is_off_without_a_url_and_serves_through_ollama_with_one(url, monkeypatch):
+def test_engine_from_env_uses_local_default_and_serves_through_explicit_url(url, monkeypatch):
     monkeypatch.delenv("SERVICE_OLLAMA_URL", raising=False)
-    assert engine_from_env("SERVICE_", LFM3Engine, "x") is None
+    assert engine_from_env("SERVICE_", LFM3Engine, "x") is not None
     monkeypatch.setenv("SERVICE_OLLAMA_URL", url)
     monkeypatch.setenv("SERVICE_OLLAMA_MODEL", "m")
     engine = engine_from_env("SERVICE_", LFM3Engine, "x")
-    reply = asyncio.run(engine.chat([{"role": "user", "content": "hi"}], project=None, temperature=0.0, max_tokens=9))
+    reply = asyncio.run(engine.chat([{"role": "user", "content": "hi"}], temperature=0.0, max_tokens=9))
     assert reply["content"] == "Hello" and reply["model"] == "m"
     assert asyncio.run(engine.cached_sha()) == "abc"
 
@@ -114,7 +114,7 @@ def test_a_saved_setting_applies_to_the_next_call_without_a_restart(url, monkeyp
             return values[key]
 
     engine = engine_from_env("SERVICE_", LFM3Engine, "m", settings=Saved())
-    ask = lambda: asyncio.run(engine.chat([{"role": "user", "content": "leak"}], project=None, temperature=0.0, max_tokens=9))
+    ask = lambda: asyncio.run(engine.chat([{"role": "user", "content": "leak"}], temperature=0.0, max_tokens=9))
     assert ask()["content"] == "Hi" and seen[-1][1]["think"] is False
     values.update(thinking="on", hide_reasoning=False)
     assert ask()["content"] == "reason</think> Hi" and seen[-1][1]["think"] is True

@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-- `SERVICE_MODELS_DIR` sets where a local (no Docker) run keeps downloaded model weights: `settings.apply_models_dir()` maps it to `HF_HOME` and `OLLAMA_MODELS` at start.
+- Breaking: Ollama is now the only inference backend. Removed the torch backend, Hugging Face checkpoint loading/download helpers, project-model routing, and torch/transformers/accelerate dependencies and CPU package index.
+- Breaking: removed `model`, `dtype`, `max_project_models`, `project_models_dir` settings and the `project` chat request field (422). Token project restriction lists also return 422; omitted/null `projects` remains compatible with the shared editor, and legacy stored scopes are hidden in token listings. Existing saved values are ignored; use `SERVICE_OLLAMA_MODEL` at startup instead. Project model folders are no longer used.
+- Backend URL defaults to the host Ollama in Docker and loopback locally; explicitly empty values fail. Failed warm-up keeps health/admin available, with not-ready health and sanitized 503 chat hints. CPU threads are saved/reported only; Ollama chooses its own threads.
+- Updates now checks only installed Ollama digests; remote freshness is unknown. Download remains available after a successful check and always runs an Ollama pull, including when the installed digest is unchanged. Replica invalidation markers moved to the shared data volume.
+- Migration: start Ollama and pull `hf.co/LiquidAI/LFM3-1.7B-GGUF:Q4_K_M`, set `SERVICE_OLLAMA_URL` and `SERVICE_OLLAMA_MODEL`, then recreate API containers. The old `cnv_lfm3_model_models` volume with HF weights is unused and can be deleted after backup; no automatic deletion occurs. The data volume is retained. Local `SERVICE_MODELS_DIR` no longer controls weights; configure storage on Ollama itself. Rollback: restore the previous commit and remount the preserved old models volume and project folders.
+
 - Docs: `docs/guide-cli.md`, a PowerShell-only way to test the service.
 
 ### Breaking: common service environment variables

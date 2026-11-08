@@ -1,3 +1,5 @@
+"""Ollama digest checks, pulls, and replica-marker invalidation."""
+
 import asyncio
 
 import pytest
