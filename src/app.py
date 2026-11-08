@@ -90,7 +90,7 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
 
     updates = updates or OllamaUpdates(client.model, cached_sha=lambda: client.cached_sha(), remote_sha=lambda: client.remote_sha(),
                                  download=lambda: client.pull(), unload=lambda: client.unload(),
-                                 description="Checks only the installed Ollama digest without downloading; remote freshness is unknown. Download is always offered after a successful check and pulls the model again.",
+                                 description="Checks the downloaded Ollama digest against the online registry manifest without downloading weights. Only Download pulls model files.",
                                  reload_note="Weights downloaded. Every replica drops the old copy within a few seconds and loads the new weights on its next request.")
 
     async def check_forever() -> None:
@@ -129,7 +129,7 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
         background: list[asyncio.Task] = []
         try:
             if config.get("warm") if config else warm:
-                # In the background: the first start downloads the weights, and /health must answer meanwhile.
+                # In the background: only downloaded weights load; /health must answer meanwhile.
                 background.append(asyncio.create_task(warm_up()))
             if config or check_hours > 0:
                 background.append(asyncio.create_task(check_forever()))

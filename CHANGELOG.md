@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Breaking: startup, warm-up and requests load downloaded weights only. First run: open `/admin/` → Updates → Download; health/admin remain available and inference returns 503 until ready.
+- Updates compares the downloaded Ollama manifest digest with the online manifest without pulling; only admin Download pulls and invalidates replicas.
+
 - New `SERVICE_OLLAMA_PARALLEL` (default 2): generations one replica runs at once, like CNV_MiniCPM52B_Model. Before, each replica ran one at a time. Set it to the `OLLAMA_NUM_PARALLEL` of your Ollama; the in-flight cap defaults to 4 x this value.
 - Breaking: Ollama is now the only inference backend. Removed the torch backend, Hugging Face checkpoint loading/download helpers, project-model routing, and torch/transformers/accelerate dependencies and CPU package index.
 - Breaking: removed `model`, `dtype`, `max_project_models`, `project_models_dir` settings and the `project` chat request field (422). Token project restriction lists also return 422; omitted/null `projects` remains compatible with the shared editor, and legacy stored scopes are hidden in token listings. Existing saved values are ignored; use `SERVICE_OLLAMA_MODEL` at startup instead. Project model folders are no longer used.

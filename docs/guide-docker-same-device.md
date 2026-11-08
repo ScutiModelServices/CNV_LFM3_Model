@@ -1,5 +1,7 @@
 # CNV_LFM3_Model: Docker Desktop on this PC
 
+First start: open `/admin/` → **Updates** → **Download**; see [the web UI guide](guide-web-ui.md#updating-the-model-files). Startup and requests load downloaded files only; an empty installation keeps health/admin available and returns 503 for inference.
+
 Run LFM3 API replicas on port 29202, all connected to the same Ollama.
 
 ## Requirements

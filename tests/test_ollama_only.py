@@ -31,7 +31,7 @@ def test_unreachable_backend_keeps_service_available_and_chat_is_503(monkeypatch
         for stream in (False, True):
             reply = http.post("/v1/chat", json={"messages": [{"role": "user", "content": "hi"}], "stream": stream})
             assert reply.status_code == 503
-            assert "start Ollama and pull m" in reply.json()["detail"]
+            assert "press Download on the Updates card" in reply.json()["detail"]
             assert "127.0.0.1" not in reply.text
 
 
@@ -109,7 +109,7 @@ def test_explicit_download_pulls_an_already_installed_model(monkeypatch, tmp_pat
     monkeypatch.setattr("urllib.request.urlopen", request)
     engine = engine_from_env("SERVICE_", LFM3Engine, "m", marker=tmp_path / "marker")
     with TestClient(create_app(engine, admin_password="admin")) as http:
-        assert http.post("/admin/updates/check", headers={"X-Internal-Token": "admin"}).json()["weights"][0]["update"] is True
+        http.post("/admin/updates/check", headers={"X-Internal-Token": "admin"})
         reply = http.post("/admin/updates/weights", headers={"X-Internal-Token": "admin"})
         assert reply.status_code == 200
         assert "pull" in seen
@@ -152,7 +152,7 @@ def test_backend_read_failures_are_sanitized_503_and_clear_readiness(monkeypatch
     with TestClient(create_app()) as http:
         reply = http.post("/v1/chat", json={"messages": [{"role": "user", "content": "hi"}], "stream": stream})
         assert reply.status_code == 503
-        assert "start Ollama and pull m" in reply.json()["detail"]
+        assert "press Download on the Updates card" in reply.json()["detail"]
         assert "backend.internal/path" not in reply.text
         assert http.get("/health").json()["ready"] is False
 
@@ -173,7 +173,7 @@ def test_truncation_after_first_stream_piece_reports_503_error_line(monkeypatch)
         lines = [json.loads(line) for line in reply.text.splitlines()]
         assert lines[0] == {"type": "content", "text": "hello"}
         assert lines[-1]["type"] == "error" and lines[-1]["status"] == 503
-        assert "start Ollama and pull m" in lines[-1]["message"]
+        assert "press Download on the Updates card" in lines[-1]["message"]
         assert http.get("/health").json()["ready"] is False
 
 

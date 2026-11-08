@@ -5,7 +5,7 @@ CNV_LFM3_Model is one HTTP service (port 29202), with inference in a separately 
 
 ## Ways to run it
 
-Each path has its own guide. Pick one.
+Each path has its own guide. Pick one. First start needs an explicit admin Updates Download; see the web UI guide below.
 
 | Path | Guide |
 |---|---|

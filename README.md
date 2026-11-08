@@ -1,5 +1,7 @@
 # CNV_LFM3_Model
 
+First start: open `/admin/` → **Updates** → **Download**; see [the web UI guide](docs/guide-web-ui.md#updating-the-model-files). Startup and requests load downloaded files only; an empty installation keeps health/admin available and returns 503 for inference.
+
 LFM3-1.7B chat over HTTP through Ollama, port 29202. Callers share one Ollama model through API replicas, with admin settings, tokens, rate limits, metrics, streaming and answer caches. No tool service is required.
 
 ## API
@@ -23,14 +25,14 @@ LFM3-1.7B chat over HTTP through Ollama, port 29202. Callers share one Ollama mo
 
 Open `/admin/` with `SERVICE_ADMIN_PASSWORD`. Tokens, usage, replicas, Settings and Updates share the standard model-service page. CPU thread values are saved and reported only; Ollama chooses its own threads. Settings retain update-check hours, in-flight cap, answer cache size, thinking, hide reasoning and warm-up. The model name is the startup value `SERVICE_OLLAMA_MODEL`.
 
-Updates checks the installed Ollama digest without downloading; **Download new weights** runs an Ollama pull. A marker in the shared data volume tells replicas to discard old adapters and cached answers. This digest check does not discover newer remote manifests before a pull. Download remains available after a successful check and always pulls, even when the installed digest is unchanged.
+The Updates card compares the downloaded Ollama manifest digest with the online registry manifest at startup, every `update_check_hours` and on **Check now**. Checks fetch metadata only; only **Download** runs `ollama pull`. A successful download invalidates every replica through shared storage; each replica reloads on its next request.
 
 ## Run
 
-Start Ollama and pull the model first:
+Start Ollama and the API, then download from `/admin/` → **Updates** → **Download**:
 
 ```bash
-ollama pull hf.co/LiquidAI/LFM3-1.7B-GGUF:Q4_K_M
+curl -X POST http://127.0.0.1:29202/admin/updates/weights -H "X-Internal-Token: <ADMIN_PASSWORD>"
 ```
 
 ```bash

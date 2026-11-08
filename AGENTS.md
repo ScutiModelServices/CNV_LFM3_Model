@@ -11,7 +11,8 @@ This file is the one instruction file for every coding agent; `CLAUDE.md` only i
 - Run: `run.bat run`, or `uv run python src/app.py` (add `--dotenv` to load `.env`), or `docker compose up -d --build`
 
 ## Rules
-- Ollama is the only backend (`src/ollama_backend.py`); local URL defaults there, and explicitly empty URLs fail. Run Ollama and pull the configured model before using chat.
+- Load downloaded weights only; no startup, warm-up or request downloads. Only the admin Updates Download callback downloads, then replica markers invalidate old weights. Missing files keep health/admin available and inference returns 503 with an admin Download hint.
+- Ollama is the only backend (`src/ollama_backend.py`); local URL defaults there, and explicitly empty URLs fail. Run Ollama; use the admin Updates Download action before using chat.
 - `num_thread` is saved/reported only; Ollama chooses its threads. Keep injected fake loaders for tests, replica marker invalidation and recoverable 503 errors.
 - Follow the `model-service-parity` skill and `AI/ModelServices/_docs/SHARED-FEATURES.md` (what must match in every model service) and `AI/ModelServices/_docs/SERVICE-SPECIFIC.md` (what differs on purpose). A change to a shared feature goes to every service; a new difference goes into `SERVICE-SPECIFIC.md` in the same change.
 - `web/index.html`, `src/tokens.py`, `src/settings.py`, `src/updates.py` and `.dockerignore` are copies shared with the other model services. Change one, copy it to the others, run `python tools/check_sync.py` in each repo.
