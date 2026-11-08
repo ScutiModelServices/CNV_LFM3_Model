@@ -19,6 +19,7 @@ Copy `.env.example` to `.env`; saved admin settings take precedence over their e
 | `SERVICE_PORT` | `29202` | Published load-balancer port. |
 | `SERVICE_OLLAMA_URL` | `http://host.docker.internal:11434` | Required Ollama address; explicitly empty values fail startup. |
 | `SERVICE_OLLAMA_MODEL` | `hf.co/LiquidAI/LFM3-1.7B-GGUF:Q4_K_M` | Model name, read once at startup. |
+| `SERVICE_OLLAMA_PARALLEL` | `2` | Generations one replica runs at once; set it to the `OLLAMA_NUM_PARALLEL` of your Ollama. |
 | `SERVICE_REPLICAS` | `1` | API replicas sharing Ollama. |
 | `SERVICE_MEM_LIMIT` | `0` | Optional API container memory cap; does not cap Ollama. |
 

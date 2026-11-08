@@ -118,3 +118,14 @@ def test_a_saved_setting_applies_to_the_next_call_without_a_restart(url, monkeyp
     assert ask()["content"] == "Hi" and seen[-1][1]["think"] is False
     values.update(thinking="on", hide_reasoning=False)
     assert ask()["content"] == "reason</think> Hi" and seen[-1][1]["think"] is True
+
+
+def test_parallel_comes_from_service_ollama_parallel(monkeypatch):
+    monkeypatch.setenv("SERVICE_OLLAMA_URL", "http://127.0.0.1:11434")
+    monkeypatch.delenv("SERVICE_OLLAMA_PARALLEL", raising=False)
+    assert engine_from_env("SERVICE_", LFM3Engine, "m").parallel == 2
+    monkeypatch.setenv("SERVICE_OLLAMA_PARALLEL", "4")
+    assert engine_from_env("SERVICE_", LFM3Engine, "m").parallel == 4
+    monkeypatch.setenv("SERVICE_OLLAMA_PARALLEL", "0")
+    with pytest.raises(ValueError):
+        engine_from_env("SERVICE_", LFM3Engine, "m")

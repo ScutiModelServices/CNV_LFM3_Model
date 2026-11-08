@@ -30,7 +30,7 @@ class LFM3Engine:
     """One generation per replica; an injected loader supplies the Ollama adapter."""
 
     def __init__(self, model: str = DEFAULT_MODEL, *, loader: Callable[[str], Any],
-                 timeout: float = 120.0, marker: Path | None = None,
+                 timeout: float = 120.0, parallel: int = 1, marker: Path | None = None,
                  remote_sha: Callable[[str], str] = lambda _: "",
                  cached_sha: Callable[[str], str | None] = lambda _: None,
                  download: Callable[[str], None] = lambda _: None) -> None:
@@ -43,7 +43,8 @@ class LFM3Engine:
         self._remote_sha_of, self._cached_sha_of, self._download_of = remote_sha, cached_sha, download
         self._base: Any | None = None
         self._load_lock = threading.Lock()
-        self._gate = asyncio.Semaphore(1)
+        self.parallel = max(1, int(parallel))  # generations one replica runs at once; match OLLAMA_NUM_PARALLEL
+        self._gate = asyncio.Semaphore(self.parallel)
         self.generation = 0  # part of the answer cache key; changes whenever the loaded models are dropped
 
     @property

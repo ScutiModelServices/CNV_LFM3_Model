@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- New `SERVICE_OLLAMA_PARALLEL` (default 2): generations one replica runs at once, like CNV_MiniCPM52B_Model. Before, each replica ran one at a time. Set it to the `OLLAMA_NUM_PARALLEL` of your Ollama; the in-flight cap defaults to 4 x this value.
 - Breaking: Ollama is now the only inference backend. Removed the torch backend, Hugging Face checkpoint loading/download helpers, project-model routing, and torch/transformers/accelerate dependencies and CPU package index.
 - Breaking: removed `model`, `dtype`, `max_project_models`, `project_models_dir` settings and the `project` chat request field (422). Token project restriction lists also return 422; omitted/null `projects` remains compatible with the shared editor, and legacy stored scopes are hidden in token listings. Existing saved values are ignored; use `SERVICE_OLLAMA_MODEL` at startup instead. Project model folders are no longer used.
 - Backend URL defaults to the host Ollama in Docker and loopback locally; explicitly empty values fail. Failed warm-up keeps health/admin available, with not-ready health and sanitized 503 chat hints. CPU threads are saved/reported only; Ollama chooses its own threads.
