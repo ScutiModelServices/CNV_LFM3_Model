@@ -37,7 +37,7 @@ def test_unreachable_backend_keeps_service_available_and_chat_is_503(monkeypatch
 
 def test_settings_only_describe_supported_controls():
     assert {item.key for item in SETTINGS} == {
-        "update_check_hours", "max_inflight", "cache_size", "thinking", "hide_reasoning", "warm",
+        "update_check_hours", "max_inflight", "cache_size", "thinking", "hide_reasoning", "ollama_model", "warm",
     }
 
 

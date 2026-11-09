@@ -107,7 +107,7 @@ def test_engine_from_env_uses_local_default_and_serves_through_explicit_url(url,
 
 def test_a_saved_setting_applies_to_the_next_call_without_a_restart(url, monkeypatch):
     monkeypatch.setenv("SERVICE_OLLAMA_URL", url)
-    values = {"thinking": "off", "hide_reasoning": True}
+    values = {"thinking": "off", "hide_reasoning": True, "ollama_model": "m"}
 
     class Saved:
         def get(self, key):

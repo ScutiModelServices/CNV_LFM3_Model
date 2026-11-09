@@ -53,6 +53,10 @@ Tokens live in `tokens.json` (`SERVICE_TOKENS_FILE`). In Docker that is the `cnv
 survive `docker compose down` and rebuilds. Without Docker it is `tokens.json` in the folder the service starts from.
 Tokens are enforced only while `SERVICE_ADMIN_PASSWORD` is set.
 
+## Model variant
+
+The **Model variant** card lists the LFM3 quantizations (`Q4_K_M` up to `F16`). Each row shows the estimated memory it takes (the file size plus a margin; not measured), the download size, whether Ollama already has it, and whether it would run on the GPU or the CPU (slower). The top line shows what this machine has. A quantization that fits neither the free GPU memory nor the free RAM is greyed with the reason and cannot be chosen. When Ollama runs on another machine its memory cannot be seen, so nothing is blocked and the card says so. **Use** saves the Ollama model name; restart the service to apply it, then press Download on the Updates card if Ollama does not have it yet. The model that is already loaded counts as fitting.
+
 ## CPU threads
 
 The shared card saves and reports values from 1 to 256. These values have no effect on inference: Ollama chooses its own threads. Other replicas display the saved value within a few seconds.

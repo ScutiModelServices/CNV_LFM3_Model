@@ -33,8 +33,11 @@ class LFM3Engine:
                  timeout: float = 120.0, parallel: int = 1, marker: Path | None = None,
                  remote_sha: Callable[[str], str] = lambda _: "",
                  cached_sha: Callable[[str], str | None] = lambda _: None,
-                 download: Callable[[str], None] = lambda _: None) -> None:
+                 download: Callable[[str], None] = lambda _: None,
+                 local_models: Callable[[], set[str]] = lambda: set(), same_machine: bool = True) -> None:
         self.model = model
+        self._local_models = local_models
+        self.same_machine = same_machine  # Ollama runs on the machine this service sees, so its free memory is known
         self._threads: int | None = None
         self._timeout = timeout
         self._marker = marker
@@ -107,6 +110,13 @@ class LFM3Engine:
                 stop.set()  # a running `next` then ends by itself; closing the generator here could race with it
 
     # Updates compare Ollama digests; a marker in the data volume invalidates replicas.
+
+    async def downloaded(self) -> set[str]:
+        """Ollama model names on disk; empty when Ollama cannot be reached."""
+        try:
+            return await asyncio.to_thread(self._local_models)
+        except EngineError:
+            return set()
 
     async def cached_sha(self) -> str | None:
         return await asyncio.to_thread(self._cached_sha_of, self.model)
