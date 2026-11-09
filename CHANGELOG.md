@@ -2,7 +2,21 @@
 
 ## Unreleased
 
-- `SERVICE_MODELS_DIR` sets where a local (no Docker) run keeps downloaded model weights: `settings.apply_models_dir()` maps it to `HF_HOME` and `OLLAMA_MODELS` at start.
+- Admin page: the CPU threads card and tile are hidden when `CONFIG.tags` has `host-threads`, and the Project models card is shown only with `project-models`.
+
+- Admin page: `CONFIG.tags` (same tags as `docs/purpose.md`) switch tag-driven notes: `gpu` shows a CPU-threads note, `license-restricted` shows a licence note on the Updates card.
+
+- Fix: after Download, a CPU threads change or a sync from another replica drops the loaded model, the service now reloads it in the background (when "Load the model at start" is on) instead of showing "Starting" on `/admin/` until the first request.
+- Breaking: startup, warm-up and requests load downloaded weights only. First run: open `/admin/` → Updates → Download; health/admin remain available and inference returns 503 until ready.
+- Updates compares the downloaded Ollama manifest digest with the online manifest without pulling; only admin Download pulls and invalidates replicas.
+
+- New `SERVICE_OLLAMA_PARALLEL` (default 2): generations one replica runs at once, like CNV_MiniCPM52B_Model. Before, each replica ran one at a time. Set it to the `OLLAMA_NUM_PARALLEL` of your Ollama; the in-flight cap defaults to 4 x this value.
+- Breaking: Ollama is now the only inference backend. Removed the torch backend, Hugging Face checkpoint loading/download helpers, project-model routing, and torch/transformers/accelerate dependencies and CPU package index.
+- Breaking: removed `model`, `dtype`, `max_project_models`, `project_models_dir` settings and the `project` chat request field (422). Token project restriction lists also return 422; omitted/null `projects` remains compatible with the shared editor, and legacy stored scopes are hidden in token listings. Existing saved values are ignored; use `SERVICE_OLLAMA_MODEL` at startup instead. Project model folders are no longer used.
+- Backend URL defaults to the host Ollama in Docker and loopback locally; explicitly empty values fail. Failed warm-up keeps health/admin available, with not-ready health and sanitized 503 chat hints. CPU threads are saved/reported only; Ollama chooses its own threads.
+- Updates now checks only installed Ollama digests; remote freshness is unknown. Download remains available after a successful check and always runs an Ollama pull, including when the installed digest is unchanged. Replica invalidation markers moved to the shared data volume.
+- Migration: start Ollama and pull `hf.co/LiquidAI/LFM3-1.7B-GGUF:Q4_K_M`, set `SERVICE_OLLAMA_URL` and `SERVICE_OLLAMA_MODEL`, then recreate API containers. The old `cnv_lfm3_model_models` volume with HF weights is unused and can be deleted after backup; no automatic deletion occurs. The data volume is retained. Local `SERVICE_MODELS_DIR` no longer controls weights; configure storage on Ollama itself. Rollback: restore the previous commit and remount the preserved old models volume and project folders.
+
 - Docs: `docs/guide-cli.md`, a PowerShell-only way to test the service.
 
 ### Breaking: common service environment variables

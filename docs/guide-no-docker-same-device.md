@@ -1,50 +1,48 @@
 # CNV_LFM3_Model: without Docker, on Windows
 
-Run Liquid LFM3-1.7B on the CPU directly with Python: one process, no load balancer, listening on `127.0.0.1:29202`.
+First start: open `/admin/` → **Updates** → **Download**; see [the web UI guide](guide-web-ui.md#updating-the-model-files). Startup and requests load downloaded files only; an empty installation keeps health/admin available and returns 503 for inference.
+
+Run the API directly on `127.0.0.1:29202`, with inference in a running Ollama.
 
 ## Requirements
-- Windows with Python 3.11 or newer and uv (`winget install astral-sh.uv`).
-- Internet on the first start (about 4 GB of weights).
-- RAM for the model (one copy).
+
+- Python 3.11 or newer and uv (`winget install astral-sh.uv`).
+- Running Ollama with the configured model already pulled; model memory belongs to Ollama.
 
 ## Start
-Double-click `run.bat`, or run it in a terminal from `CNV_LFM3_Model\`. Choose **1 Run the service** in the menu, or run `run.bat run` to skip the menu. It runs `uv sync` to create or update `.venv`, then starts
-`python src/app.py`. The first start downloads about 4 GB of weights.
 
-Linux or macOS:
 ```bash
-cd CNV_LFM3_Model
-uv sync
+curl -X POST http://127.0.0.1:29202/admin/updates/weights -H "X-Internal-Token: <ADMIN_PASSWORD>"
+```
+
+Use `run.bat run`, or choose Run from its menu. It syncs `.venv` and starts `python src/app.py --dotenv`. Copy `.env.example` only if needed, change `SERVICE_OLLAMA_URL` to `http://127.0.0.1:11434`, and set an admin password. When the URL is unset, the local default is `http://127.0.0.1:11434`; explicitly empty is an error.
+
+`--dotenv` loads this folder's `.env` and prints names only; real environment variables win. A plain invocation does not read `.env`:
+
+```bash
 uv run python src/app.py
 ```
 
-## Settings
-`run.bat` loads `.env` in this folder (copy `.env.example`) through `--dotenv` and prints the names it loaded, never the values; a real environment variable wins over it. A plain `python src/app.py` does not read `.env`. Set variables in `.env` or in the environment before starting:
-
-| Variable | Default | Effect |
-|---|---|---|
-| `SERVICE_HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` only if other devices must reach it. |
-| `SERVICE_PORT` | `29202` | Port. |
-| `SERVICE_ADMIN_PASSWORD` | empty | Unlocks `/admin/` and requires tokens on every call but `/health`. Empty = no auth. |
-| `SERVICE_WARM` | `1` | Load the model at start; with `0` the first request pays the load time. |
-| `SERVICE_NUM_THREAD` | the library decides | CPU threads. Set it to the number of **physical** cores. |
-| `SERVICE_MODELS_DIR` | the library's default cache | Folder for downloaded model weights. Sets `HF_HOME` (and `OLLAMA_MODELS` to `<folder>\ollama`) at start; a real `HF_HOME` or `OLLAMA_MODELS` wins. Docker keeps weights in the `_models` volume and ignores it. |
-
-PowerShell: `$env:SERVICE_ADMIN_PASSWORD = "secret"; .\run.bat`
-Bash: `SERVICE_ADMIN_PASSWORD=secret uv run python src/app.py`
+`SERVICE_HOST` defaults to `127.0.0.1`. Other startup values are listed in [Docker settings](guide-docker-same-device.md#settings); limits and reasoning controls are on the admin page. Model storage is managed by the separate Ollama process.
 
 ## Check
+
 ```bash
 curl http://127.0.0.1:29202/health
 ```
-`ready` is `false` until the model has loaded. Then open `http://127.0.0.1:29202/admin/` (see [guide-web-ui.md](guide-web-ui.md)),
-make a token, and try a call:
-```bash
-curl -X POST http://127.0.0.1:29202/v1/chat -H "Content-Type: application/json" -H "X-Internal-Token: lfm3_..." -d '{"messages":[{"role":"user","content":"Say hello in one sentence."}]}'
-```
+
+The API starts even when Ollama is down. `ready` stays false and chat returns 503 with a admin Updates Download hint. Open `http://127.0.0.1:29202/admin/` and create a token.
 
 ## Stop
-Ctrl+C in the terminal. Do not run this and the Docker stack together: both use port 29202.
+
+Press Ctrl+C. Do not run the Docker stack on the same port simultaneously.
 
 ## Tests
-`uv run pytest`.
+
+```bash
+uv run pytest
+```
+
+## Problems
+
+See [common problems](guide-docker-same-device.md#problems). Real Ollama inference has not been verified for this migration.
