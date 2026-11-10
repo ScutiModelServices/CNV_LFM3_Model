@@ -59,7 +59,7 @@ The **Model variant** card lists the LFM3 quantizations (`Q4_K_M` up to `F16`). 
 
 ## CPU threads
 
-The shared card saves and reports values from 1 to 256. These values have no effect on inference: Ollama chooses its own threads. Other replicas display the saved value within a few seconds.
+The shared card saves values from 1 to 256 and sends them to Ollama as `num_thread` with every request, so a change applies to the next question on every replica within a few seconds. Ollama reloads the model once when the value changes, so that first answer is slower. Set it to the number of physical CPU cores: Ollama can default to logical CPUs and run slower on a small CPU. Leave it unset to let Ollama decide.
 
 ## Replicas and parallel requests (read-only)
 

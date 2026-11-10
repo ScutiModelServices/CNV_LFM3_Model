@@ -25,7 +25,7 @@ Copy `.env.example` to `.env.compose`; saved admin settings take precedence over
 | `SERVICE_REPLICAS` | `1` | API replicas sharing Ollama. |
 | `SERVICE_MEM_LIMIT` | `0` | Optional API container memory cap; does not cap Ollama. |
 
-Admin settings: `update_check_hours` (6), `max_inflight` (0 = 4), `cache_size` (256), `thinking` (off), `hide_reasoning` (true), `warm` (true, restart). CPU thread values have no effect on Ollama. Details: [admin page](guide-web-ui.md#settings).
+Admin settings: `update_check_hours` (6), `max_inflight` (0 = 4), `cache_size` (256), `thinking` (off), `hide_reasoning` (true), `warm` (true, restart). CPU threads (`num_thread`) are sent to Ollama with every request; unset lets Ollama decide. Details: [admin page](guide-web-ui.md#settings).
 
 ## Start
 
