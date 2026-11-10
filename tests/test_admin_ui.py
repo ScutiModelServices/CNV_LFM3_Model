@@ -149,13 +149,12 @@ def test_settings_can_be_saved_and_reset(page):
     sync_api.expect(page.locator("#setting-max_inflight")).to_have_value("0")
 
 
-def test_threads_card_is_hidden_for_host_threads(page):
+def test_threads_card_is_shown_because_threads_reach_ollama(page):
     page.fill("#admin", PASSWORD)
     page.click("#signin-button")
     page.click('#admin-nav a[href="#runtime"]')
     sync_api.expect(page.locator("#settings-card")).to_be_visible()
-    sync_api.expect(page.locator("#threads-card")).to_be_hidden()  # CONFIG.tags has host-threads
-    sync_api.expect(page.locator("#thread-tile")).to_be_hidden()
+    sync_api.expect(page.locator("#threads-card")).to_be_visible()  # no host-threads tag: LFM3 sends num_thread to Ollama
     sync_api.expect(page.locator("#project-models-card")).to_be_hidden()
 
 

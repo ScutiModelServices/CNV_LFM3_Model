@@ -63,6 +63,8 @@ class LFM3Engine:
     def num_thread(self, count: int) -> None:
         if count != self._threads:
             self._threads = count
+            if self._base is not None:
+                self._base.num_thread = count  # the next request carries it to Ollama
 
     @property
     def ready(self) -> bool:
@@ -79,6 +81,7 @@ class LFM3Engine:
         with self._load_lock:
             if self._base is None:
                 self._base = self._loader(self.model)
+                self._base.num_thread = self._threads
             return self._base
 
     async def chat(self, messages: list[dict[str, str]], *, temperature: float,
