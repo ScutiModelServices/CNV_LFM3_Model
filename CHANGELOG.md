@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Playground: no token to paste
+
+The Try it panel signs in with a temporary public token made from the admin session (named `playground (temporary)`, valid 1 day, revoked on sign-out or when the tab closes), so the service token field is hidden and choices such as voices load by themselves. The token shows in the tokens list while it lives.
+
+
 - `POST /v1/chat` takes optional `tools` (up to 32 `{name, description, parameters}`) and passes them to Ollama. A model that wants a tool answers with `tool_calls` (`id`, `name`, `arguments`) and `finish_reason: "tool_calls"`; send the assistant turn with its `tool_calls` and the result as a `tool` message (`tool_name` names the call) to continue. Messages may now have the role `tool`. Every answer has a `tool_calls` list (empty when none), a stream carries it on the `done` line, and `tools` are part of the answer-cache key. `schema`, request-level `thinking` and `project` still return 422. Checked against the pulled model: a weather call, the tool-result turn and a streamed call all worked. This is a breaking change for callers that relied on `tools` returning 422.
 
 - Model variants: a **Model variant** card on the admin page lists the LFM3 quantizations (`Q4_K_M`, `Q5_K_M`, `Q6_K`, `Q8_0`, `F16`) with an estimate of the memory each takes (file size x 1.1 + 400 MB; arithmetic, not measured), its download size, whether Ollama already has it, and whether it would run on the GPU or the CPU. It offers only what this machine can run: free memory and the NVIDIA GPU are read when the page opens (`src/hardware.py`). When Ollama runs on another machine nothing can be checked, so nothing is blocked. `GET /admin/variants` and `PUT /admin/variant` (409 when it does not fit, nothing saved). The Ollama model name is now the restart setting `ollama_model` (saved value, else `SERVICE_OLLAMA_MODEL`, else the default), so the card can change it; after a restart press Download on the Updates card if Ollama does not have it. `NVFP4` and `QAD-Q4_0` are not offered. Tests: `tests/test_variants.py`.
