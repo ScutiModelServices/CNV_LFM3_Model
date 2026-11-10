@@ -63,6 +63,6 @@ Model pulls use the [Updates card](guide-web-ui.md#updating-the-model-files). Do
 | 503 or `ready: false` | Start Ollama and pull the configured model; check the backend URL and its container reachability. |
 | Empty backend URL error | Set `SERVICE_OLLAMA_URL` or remove the variable to use the default. |
 | 401 | Supply a valid public token; admin routes require the admin password. |
-| 422 | Unknown field or invalid value; `project`, `tools`, `schema` and request `thinking` are unsupported. |
+| 422 | Unknown field or invalid value; `project`, `schema` and request `thinking` are unsupported. |
 | 429 | Wait for `Retry-After`, or adjust the in-flight cap/rate limit. |
 | nginx 502 after scaling | Restart `cnv_lfm3_model_lb` so nginx resolves new replica addresses. |

@@ -11,7 +11,7 @@ LFM3-1.7B chat over HTTP through Ollama, port 29202. Callers share one Ollama mo
 | `POST /v1/chat` | `messages`, optional `temperature`, `max_tokens`, `stream`; returns `content`, `finish_reason`, `model`, `fallback` (always false), `usage`, `duration_ms`. |
 | `GET /health` | `status`, `model`, `ready`, `num_thread`; no token required. |
 
-**Input.** One to 64 messages with roles `system`, `user`, or `assistant`, each at most 100,000 characters. Temperature is 0 to 2 (default 0); maximum tokens is 1 to 4096 (default 512). Unknown fields, including `project`, `tools`, `schema` and `thinking`, return 422. Thinking is controlled through admin settings.
+**Input.** One to 64 messages with roles `system`, `user`, `assistant` or `tool`, each at most 100,000 characters. Temperature is 0 to 2 (default 0); maximum tokens is 1 to 4096 (default 512). Unknown fields, including `project`, `schema` and `thinking`, return 422. Optional `tools` (up to 32 `{name, description, parameters}`) go to Ollama; the answer then has `tool_calls` (`id`, `name`, `arguments`) and `finish_reason` `tool_calls`. Send the assistant turn with its `tool_calls` and the result as a `tool` message (`tool_name` names the call) to continue. Thinking is controlled through admin settings.
 
 **Result.** JSON with answer text, finish reason, selected Ollama model and token usage. An unavailable Ollama or missing model returns 503 with a hint to start Ollama and pull the model. The API and admin page remain available during failed warm-up.
 

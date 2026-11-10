@@ -28,7 +28,7 @@ Invoke-RestMethod -Method Post -Uri "$base/v1/chat" -Headers $h -ContentType "ap
 
 Add `stream = $true` to get JSON lines while the answer is made.
 
-Project selection, tools, schema and request thinking get 422.
+Project selection, schema and request thinking get 422. `tools` are accepted (see the README).
 
 ## Problems
 
