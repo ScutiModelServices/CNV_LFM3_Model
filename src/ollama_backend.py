@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import hashlib
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from http.client import HTTPException
 import os
 import urllib.error
@@ -68,9 +68,13 @@ class OllamaLoaded:
     def hide_reasoning(self) -> bool:
         return (self._live or (lambda: self._fixed))()[1]
 
-    def _body(self, messages: list[dict[str, str]], temperature: float, max_tokens: int, stream: bool) -> dict[str, Any]:
-        return {"model": self.model, "messages": messages, "stream": stream, "think": self.thinking,
+    def _body(self, messages: list[dict[str, Any]], temperature: float, max_tokens: int, stream: bool,
+              tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        body = {"model": self.model, "messages": messages, "stream": stream, "think": self.thinking,
                 "options": {"temperature": temperature, "num_predict": max_tokens}}
+        if tools:
+            body["tools"] = tools
+        return body
 
     def _clean(self, text: str, hide: bool | None = None) -> str:
         """Drop reasoning written into content through its final closing marker."""
@@ -81,12 +85,12 @@ class OllamaLoaded:
         return {"prompt_tokens": last.get("prompt_eval_count", 0), "completion_tokens": last.get("eval_count", 0),
                 "finish": "length" if last.get("done_reason") == "length" else "stop"}
 
-    def stream(self, messages: list[dict[str, str]], temperature: float, max_tokens: int, max_time: float,
-               stop: Any) -> Iterator[tuple[str, Any]]:
+    def stream(self, messages: list[dict[str, Any]], temperature: float, max_tokens: int, max_time: float,
+               stop: Any, tools: list[dict[str, Any]] | None = None) -> Iterator[tuple[str, Any]]:
         hide = self.hide_reasoning
         held: list[str] = []
         try:
-            with _call(self.url, "/api/chat", self._body(messages, temperature, max_tokens, True), max_time) as response:
+            with _call(self.url, "/api/chat", self._body(messages, temperature, max_tokens, True, tools), max_time) as response:
                 for raw in response:
                     if stop.is_set():
                         return
@@ -101,6 +105,8 @@ class OllamaLoaded:
                             held.append(text)
                         else:
                             yield "content", text
+                    if isinstance(message.get("tool_calls"), list) and message["tool_calls"]:
+                        yield "tool_calls", message["tool_calls"]
                     if piece.get("done") is True:
                         if held and (answer := self._clean("".join(held), hide)):
                             yield "content", answer
@@ -111,13 +117,17 @@ class OllamaLoaded:
         except _READ_ERRORS:
             raise _unavailable(self.model) from None
 
-    def generate(self, messages: list[dict[str, str]], temperature: float, max_tokens: int, max_time: float) -> dict[str, Any]:
-        reply = _json_call(self.url, "/api/chat", self._body(messages, temperature, max_tokens, False), max_time, self.model)
+    def generate(self, messages: list[dict[str, Any]], temperature: float, max_tokens: int, max_time: float,
+                 tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        reply = _json_call(self.url, "/api/chat", self._body(messages, temperature, max_tokens, False, tools), max_time, self.model)
         try:
             content = reply["message"]["content"]
             if not isinstance(content, str):
                 raise _unavailable(self.model)
-            return {"content": self._clean(content.strip()), **self._stats(reply)}
+            calls = reply["message"].get("tool_calls") or []
+            if not isinstance(calls, list):
+                raise _unavailable(self.model)
+            return {"content": self._clean(content.strip()), **({"tool_calls": calls} if calls else {}), **self._stats(reply)}
         except _READ_ERRORS:
             raise _unavailable(self.model) from None
 
@@ -160,7 +170,10 @@ def engine_from_env(prefix: str, engine_class: type, default_model: str, thinkin
     url = os.environ.get(f"{prefix}OLLAMA_URL", DEFAULT_URL).strip().rstrip("/")
     if not url:
         raise ValueError(f"{prefix}OLLAMA_URL must not be empty; set an Ollama server URL")
-    model = os.environ.get(f"{prefix}OLLAMA_MODEL", "").strip() or default_model
+    # With admin settings the model is the saved `ollama_model` (else SERVICE_OLLAMA_MODEL, else the default): the
+    # Model variant card saves it. Without them only the environment applies.
+    model = (settings.get("ollama_model") if settings is not None
+             else os.environ.get(f"{prefix}OLLAMA_MODEL", "").strip()) or default_model
     mode = (thinking or os.environ.get(f"{prefix}THINKING", "") or "off").strip().lower()
     if mode not in ("off", "on"):
         raise ValueError(f"{prefix}THINKING must be off or on, not {mode!r}")
@@ -176,6 +189,15 @@ def engine_from_env(prefix: str, engine_class: type, default_model: str, thinkin
         try:
             digest = next((m["digest"] for m in reply["models"] if m["name"] in (model, f"{model}:latest")), None)
             return digest.removeprefix("sha256:").lower() if digest else None
+        except _READ_ERRORS:
+            raise _unavailable(model) from None
+
+    def local_models() -> set[str]:
+        """Names of every model Ollama has on disk, with and without an implicit `:latest`."""
+        reply = _json_call(url, "/api/tags", None, 15, model)
+        try:
+            return {name.removesuffix(":latest") if name.endswith(":latest") and name.count(":") == 1 else name
+                    for name in (m["name"] for m in reply["models"])}
         except _READ_ERRORS:
             raise _unavailable(model) from None
 
@@ -210,4 +232,5 @@ def engine_from_env(prefix: str, engine_class: type, default_model: str, thinkin
             raise _unavailable(model)
 
     return engine_class(model, parallel=_parallel(), loader=lambda source: OllamaLoaded(url, source, thinking=mode == "on", hide_reasoning=hide, live=live),
-                        cached_sha=local_digest, remote_sha=remote_digest, download=pull, **options)
+                        cached_sha=local_digest, remote_sha=remote_digest, download=pull,
+                        local_models=local_models, same_machine=urlparse(url).hostname in ("127.0.0.1", "localhost", "::1"), **options)

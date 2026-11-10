@@ -13,14 +13,14 @@ Run LFM3 API replicas on port 29202, all connected to the same Ollama.
 
 ## Settings
 
-Copy `.env.example` to `.env`; saved admin settings take precedence over their environment defaults.
+Copy `.env.example` to `.env.compose`; saved admin settings take precedence over their environment defaults.
 
 | Variable | Default | Effect |
 |---|---|---|
 | `SERVICE_ADMIN_PASSWORD` | empty | Enables authenticated public calls and admin access. |
 | `SERVICE_PORT` | `29202` | Published load-balancer port. |
 | `SERVICE_OLLAMA_URL` | `http://host.docker.internal:11434` | Required Ollama address; explicitly empty values fail startup. |
-| `SERVICE_OLLAMA_MODEL` | `hf.co/LiquidAI/LFM3-1.7B-GGUF:Q4_K_M` | Model name, read once at startup. |
+| `SERVICE_OLLAMA_MODEL` | `hf.co/LiquidAI/LFM3-1.7B-GGUF:Q4_K_M` | Model name, read once at startup. A value saved from the admin page's Model variant card wins over it. |
 | `SERVICE_OLLAMA_PARALLEL` | `2` | Generations one replica runs at once; set it to the `OLLAMA_NUM_PARALLEL` of your Ollama. |
 | `SERVICE_REPLICAS` | `1` | API replicas sharing Ollama. |
 | `SERVICE_MEM_LIMIT` | `0` | Optional API container memory cap; does not cap Ollama. |
@@ -30,11 +30,11 @@ Admin settings: `update_check_hours` (6), `max_inflight` (0 = 4), `cache_size` (
 ## Start
 
 1. Start Ollama on a container-accessible interface and pull the configured model.
-2. Set the admin password and backend address in `.env`.
+2. Set the admin password and backend address in `.env.compose`.
 3. Start the API:
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.compose up -d --build
 ```
 
 Tokens, settings and replica update markers live in `cnv_lfm3_model_data`. Ollama manages its own model storage. The former service weights volume is unused; see [migration notes](../CHANGELOG.md).
@@ -50,7 +50,7 @@ Warm-up runs in the background. The health endpoint and admin page remain availa
 ## Updating
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.compose up -d --build
 docker compose restart cnv_lfm3_model_lb
 ```
 
@@ -63,6 +63,6 @@ Model pulls use the [Updates card](guide-web-ui.md#updating-the-model-files). Do
 | 503 or `ready: false` | Start Ollama and pull the configured model; check the backend URL and its container reachability. |
 | Empty backend URL error | Set `SERVICE_OLLAMA_URL` or remove the variable to use the default. |
 | 401 | Supply a valid public token; admin routes require the admin password. |
-| 422 | Unknown field or invalid value; `project`, `tools`, `schema` and request `thinking` are unsupported. |
+| 422 | Unknown field or invalid value; `project`, `schema` and request `thinking` are unsupported. |
 | 429 | Wait for `Retry-After`, or adjust the in-flight cap/rate limit. |
 | nginx 502 after scaling | Restart `cnv_lfm3_model_lb` so nginx resolves new replica addresses. |

@@ -11,7 +11,7 @@ LFM3-1.7B chat over HTTP through Ollama, port 29202. Callers share one Ollama mo
 | `POST /v1/chat` | `messages`, optional `temperature`, `max_tokens`, `stream`; returns `content`, `finish_reason`, `model`, `fallback` (always false), `usage`, `duration_ms`. |
 | `GET /health` | `status`, `model`, `ready`, `num_thread`; no token required. |
 
-**Input.** One to 64 messages with roles `system`, `user`, or `assistant`, each at most 100,000 characters. Temperature is 0 to 2 (default 0); maximum tokens is 1 to 4096 (default 512). Unknown fields, including `project`, `tools`, `schema` and `thinking`, return 422. Thinking is controlled through admin settings.
+**Input.** One to 64 messages with roles `system`, `user`, `assistant` or `tool`, each at most 100,000 characters. Temperature is 0 to 2 (default 0); maximum tokens is 1 to 4096 (default 512). Unknown fields, including `project`, `schema` and `thinking`, return 422. Optional `tools` (up to 32 `{name, description, parameters}`) go to Ollama; the answer then has `tool_calls` (`id`, `name`, `arguments`) and `finish_reason` `tool_calls`. Send the assistant turn with its `tool_calls` and the result as a `tool` message (`tool_name` names the call) to continue. Thinking is controlled through admin settings.
 
 **Result.** JSON with answer text, finish reason, selected Ollama model and token usage. An unavailable Ollama or missing model returns 503 with a hint to start Ollama and pull the model. The API and admin page remain available during failed warm-up.
 
@@ -23,7 +23,7 @@ LFM3-1.7B chat over HTTP through Ollama, port 29202. Callers share one Ollama mo
 
 ## Admin page
 
-Open `/admin/` with `SERVICE_ADMIN_PASSWORD`. Tokens, usage, replicas, Settings and Updates share the standard model-service page. CPU thread values are saved and reported only; Ollama chooses its own threads. Settings retain update-check hours, in-flight cap, answer cache size, thinking, hide reasoning and warm-up. The model name is the startup value `SERVICE_OLLAMA_MODEL`.
+Open `/admin/` with `SERVICE_ADMIN_PASSWORD`. Tokens, usage, replicas, Settings, Updates and the Model variant card (choose a quantization this machine can run, with estimated memory use) share the standard model-service page. CPU thread values are saved and reported only; Ollama chooses its own threads. Settings retain update-check hours, in-flight cap, answer cache size, thinking, hide reasoning and warm-up. The model name is the startup value `SERVICE_OLLAMA_MODEL`.
 
 The Updates card compares the downloaded Ollama manifest digest with the online registry manifest at startup, every `update_check_hours` and on **Check now**. Checks fetch metadata only; only **Download** runs `ollama pull`. A successful download invalidates every replica through shared storage; each replica reloads on its next request.
 
@@ -36,10 +36,10 @@ curl -X POST http://127.0.0.1:29202/admin/updates/weights -H "X-Internal-Token: 
 ```
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.compose up -d --build
 ```
 
-Docker defaults to `http://host.docker.internal:11434`. A local run defaults to `http://127.0.0.1:11434` when `SERVICE_OLLAMA_URL` is unset. An explicitly empty URL is an error. Without Docker use `run.bat run` with a running Ollama; when copying `.env.example`, change the Docker URL to the local one.
+Docker defaults to `http://host.docker.internal:11434`. A local run defaults to `http://127.0.0.1:11434` when `SERVICE_OLLAMA_URL` is unset. An explicitly empty URL is an error. Without Docker use `run.bat run` with a running Ollama; copy `.env.example` to `.env.local` and set the local URL there; `.env.compose` (Docker Desktop here) and `.env` (the deployment device) keep the Docker one.
 
 ```bash
 curl -X POST http://127.0.0.1:29202/v1/chat -H "Content-Type: application/json" -H "X-Internal-Token: lfm3_..." -d '{"messages":[{"role":"user","content":"Hello"}]}'

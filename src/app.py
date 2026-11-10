@@ -19,6 +19,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field
 
+import hardware
+import variants
 from cache import AnswerCache
 from disconnect import CallerGone, Measure, first_piece
 from engine import DEFAULT_MODEL, LFM3Engine, EngineError, default_marker
@@ -30,18 +32,48 @@ from updates import Updates
 
 _log = logging.getLogger(__name__)
 
+class ToolCall(BaseModel):
+    id: str | None = None
+    name: str = Field(min_length=1, max_length=64)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
 class Message(BaseModel):
-    role: Literal["system", "user", "assistant"]
+    """`tool_calls` belongs to an assistant turn; a `tool` message carries one call's result (`tool_name` names it)."""
+
+    role: Literal["system", "user", "assistant", "tool"]
     content: str = Field("", max_length=100_000)
+    tool_calls: list[ToolCall] | None = None
+    tool_name: str | None = Field(None, max_length=64)
+
+
+class Tool(BaseModel):
+    name: str = Field(pattern=r"^[A-Za-z0-9_.-]{1,64}$")
+    description: str = Field("", max_length=2000)
+    parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
 
 
 class ChatRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")  # tools, schema and thinking are refused, not silently ignored
+    model_config = ConfigDict(extra="forbid")  # schema and thinking are refused, not silently ignored
 
     messages: list[Message] = Field(min_length=1, max_length=64)
+    tools: list[Tool] | None = Field(None, max_length=32)
     temperature: float = Field(0.0, ge=0, le=2)
     max_tokens: int = Field(512, ge=1, le=4096)
     stream: bool = False  # true: the answer arrives as JSON lines while it is made
+
+
+def _ollama_message(message: Message) -> dict[str, Any]:
+    out: dict[str, Any] = {"role": message.role, "content": message.content}
+    if message.tool_calls:
+        out["tool_calls"] = [{"function": {"name": call.name, "arguments": call.arguments}} for call in message.tool_calls]
+    if message.tool_name:
+        out["tool_name"] = message.tool_name
+    return out
+
+
+def _ollama_tool(tool: Tool) -> dict[str, Any]:
+    return {"type": "function", "function": tool.model_dump()}
 
 
 class SettingsUpdate(BaseModel):
@@ -58,6 +90,10 @@ class NewToken(BaseModel):
 class TokenScope(BaseModel):
     projects: None = None  # null-only compatibility with the shared token editor
     rate: int | None = Field(None, ge=1, le=100_000)
+
+
+class VariantChoice(BaseModel):
+    id: str = Field(min_length=1, max_length=64)
 
 
 class Threads(BaseModel):
@@ -188,7 +224,12 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
                 "num_thread": client.num_thread}
 
     def build(reply: dict[str, Any], started: float) -> dict[str, Any]:
-        return {"content": reply["content"], "finish_reason": reply["finish"], "model": reply["model"],
+        calls = [{"id": call.get("id") or f"call_{index}", "name": call["function"]["name"],
+                  "arguments": call["function"].get("arguments") or {}}
+                 for index, call in enumerate(reply.get("tool_calls") or [])
+                 if isinstance(call.get("function"), dict) and call["function"].get("name")]
+        return {"content": reply["content"], "tool_calls": calls, "finish_reason": "tool_calls" if calls else reply["finish"],
+                "model": reply["model"],
                 "fallback": reply["fallback"],
                 "usage": {"input_tokens": reply["prompt_tokens"], "output_tokens": reply["completion_tokens"]},
                 "duration_ms": round((time.perf_counter() - started) * 1000)}
@@ -196,6 +237,7 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
     def cache_key(body: ChatRequest) -> str:
         """Include the model generation so pulls invalidate old answers."""
         part = [client.generation, [m.model_dump() for m in body.messages], body.max_tokens,
+                [t.model_dump() for t in body.tools or []],
                 config.get("thinking") if config else os.environ.get("SERVICE_THINKING", "off"),
                 config.get("hide_reasoning") if config else os.environ.get("SERVICE_HIDE_REASONING", "true")]
         return hashlib.sha256(json.dumps(part, sort_keys=True, default=str).encode()).hexdigest()
@@ -217,6 +259,7 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
         after the first piece can only be sent as an `error` line."""
         parts: list[str] = []
         stats: dict[str, Any] = {}
+        calls: list[dict[str, Any]] = []
         try:
             async def all_events():
                 if first is not None:
@@ -228,6 +271,8 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
                 if kind == "content":
                     parts.append(value)
                     yield line({"type": "content", "text": value})
+                elif kind == "tool_calls":
+                    calls.extend(value)
                 else:
                     stats = value
         except EngineError as error:
@@ -239,7 +284,7 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
             return
         finally:
             await events.aclose()
-        result = build({**stats, "content": "".join(parts).strip()}, started)
+        result = build({**stats, "content": "".join(parts).strip(), "tool_calls": calls}, started)
         if key:
             cache.put(key, result, size)
         yield line({"type": "done", **result})
@@ -257,10 +302,11 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
                 return ndjson(replay(kept), "hit")
             response.headers["X-Cache"] = "hit"
             return kept
-        messages = [m.model_dump() for m in body.messages]
+        messages = [_ollama_message(m) for m in body.messages]
+        extra = {"tools": [_ollama_tool(t) for t in body.tools]} if body.tools else {}  # only sent when used
         try:
             if body.stream:
-                events = client.chat_stream(messages, temperature=body.temperature, max_tokens=body.max_tokens)
+                events = client.chat_stream(messages, temperature=body.temperature, max_tokens=body.max_tokens, **extra)
                 try:
                     first = await first_piece(request, events, None)  # waited for here, so a refusal is still an HTTP error
                 except CallerGone:
@@ -270,7 +316,7 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
                     await events.aclose()
                     raise
                 return ndjson(live_lines(events, first, started, key, size), "miss")
-            reply = await client.chat(messages, temperature=body.temperature, max_tokens=body.max_tokens)
+            reply = await client.chat(messages, temperature=body.temperature, max_tokens=body.max_tokens, **extra)
         except EngineError as error:
             raise HTTPException(422 if error.status == 400 else error.status or 500, str(error)) from None
         except Exception:
@@ -288,6 +334,33 @@ def create_app(client: LFM3Engine | None = None, admin_password: str | None = No
         client.num_thread = body.num_thread
         settings.save(tokens.settings_path, num_thread=body.num_thread)
         return {"num_thread": client.num_thread}
+
+    async def variant_rows() -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+        """What this machine has (None when Ollama is on another machine) and every quantization with its estimate and
+        whether it fits. Read when asked, never cached."""
+        hw = await asyncio.to_thread(hardware.probe) if client.same_machine else None
+        return hw, variants.listing(hw, client.model, await client.downloaded())
+
+    @app.get("/admin/variants", dependencies=[Depends(admin)])
+    async def list_variants() -> dict[str, Any]:
+        hw, rows = await variant_rows()
+        return {"hardware": hw, "summary": hardware.describe(hw), "variants": rows, "estimate": "Estimated from the file size; not measured."}
+
+    @app.put("/admin/variant", dependencies=[Depends(admin)])
+    async def choose_variant(body: VariantChoice) -> dict[str, Any]:
+        """Saves the Ollama model name. It is read at start, so a restart applies it."""
+        if config is None:
+            raise HTTPException(409, "Settings are fixed in this setup")
+        row = variants.find((await variant_rows())[1], body.id)
+        if row is None:
+            raise HTTPException(404, "No such variant.")
+        if row["fits"] is False:
+            raise HTTPException(409, row["reason"])
+        try:
+            config.set({"ollama_model": row["model"]})
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        return {"saved": row["id"], "restart_required": not row["current"], "downloaded": row["downloaded"]}
 
     @app.get("/admin/workers", dependencies=[Depends(admin)])
     def workers() -> dict[str, Any]:
@@ -373,13 +446,12 @@ def main() -> None:
 
     import uvicorn
 
-    if "--dotenv" in sys.argv[1:]:  # run.bat asks for it; a plain `python src/app.py` and Docker never read .env
-        env_file = Path(__file__).resolve().parents[1] / ".env"
-        if env_file.is_file():
-            names = settings.load_env_file(env_file)
-            print(f".env: loaded {', '.join(names) or 'no variables'} (names only; a real environment variable wins)", flush=True)
-        else:
-            print(".env: no file in the service folder", flush=True)
+    if "--dotenv" in sys.argv[1:]:  # run.bat asks for it; a plain `python src/app.py` and Docker never read .env files
+        loaded = settings.load_env_files(Path(__file__).resolve().parents[1])
+        for name, names in loaded.items():
+            print(f"{name}: loaded {', '.join(names) or 'no variables'} (names only; a real environment variable wins)", flush=True)
+        if not loaded:
+            print(".env.local / .env: no file in the service folder", flush=True)
     store = TokenStore(os.environ.get("SERVICE_TOKENS_FILE", "tokens.json"))
     config = settings.Config(store.settings_path, SETTINGS)
     client = engine_from_env("SERVICE_", LFM3Engine, DEFAULT_MODEL, marker=default_marker(), settings=config)

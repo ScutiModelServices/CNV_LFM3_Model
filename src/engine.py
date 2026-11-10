@@ -20,6 +20,11 @@ class EngineError(RuntimeError):
         self.status = status
 
 
+def _tools(tools: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """Loader keyword for the request's tools; nothing when there are none, so plain chats call the loader as before."""
+    return {"tools": tools} if tools else {}
+
+
 def default_marker() -> Path:
     """File in the shared data volume whose content changes when one replica downloads new weights."""
     configured = os.environ.get("SERVICE_WEIGHTS_MARKER")
@@ -33,8 +38,11 @@ class LFM3Engine:
                  timeout: float = 120.0, parallel: int = 1, marker: Path | None = None,
                  remote_sha: Callable[[str], str] = lambda _: "",
                  cached_sha: Callable[[str], str | None] = lambda _: None,
-                 download: Callable[[str], None] = lambda _: None) -> None:
+                 download: Callable[[str], None] = lambda _: None,
+                 local_models: Callable[[], set[str]] = lambda: set(), same_machine: bool = True) -> None:
         self.model = model
+        self._local_models = local_models
+        self.same_machine = same_machine  # Ollama runs on the machine this service sees, so its free memory is known
         self._threads: int | None = None
         self._timeout = timeout
         self._marker = marker
@@ -74,13 +82,13 @@ class LFM3Engine:
             return self._base
 
     async def chat(self, messages: list[dict[str, str]], *, temperature: float,
-                   max_tokens: int) -> dict[str, Any]:
+                   max_tokens: int, tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         async with self._gate:
-            return await asyncio.to_thread(self._chat, messages, temperature, max_tokens)
+            return await asyncio.to_thread(self._chat, messages, temperature, max_tokens, tools)
 
-    def _chat(self, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> dict[str, Any]:
+    def _chat(self, messages: list[dict[str, str]], temperature: float, max_tokens: int, tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         try:
-            result = self._base_model().generate(messages, temperature, max_tokens, self._timeout)
+            result = self._base_model().generate(messages, temperature, max_tokens, self._timeout, **_tools(tools))
             return {**result, "model": self.model, "fallback": False}
         except EngineError as error:
             if error.status == 503:
@@ -88,13 +96,13 @@ class LFM3Engine:
             raise
 
     async def chat_stream(self, messages: list[dict[str, str]], *, temperature: float,
-                          max_tokens: int) -> AsyncIterator[tuple[str, Any]]:
+                          max_tokens: int, tools: list[dict[str, Any]] | None = None) -> AsyncIterator[tuple[str, Any]]:
         """("content", text) pieces, then ("done", stats with `model` and `fallback`). Holds the generation slot until
         the last piece; when the caller closes the iterator the generation is stopped."""
         stop = threading.Event()
         async with self._gate:
             loaded = await asyncio.to_thread(self._base_model)
-            events = loaded.stream(messages, temperature, max_tokens, self._timeout, stop)
+            events = loaded.stream(messages, temperature, max_tokens, self._timeout, stop, **_tools(tools))
             try:
                 while (event := await asyncio.to_thread(next, events, None)) is not None:
                     kind, value = event
@@ -107,6 +115,13 @@ class LFM3Engine:
                 stop.set()  # a running `next` then ends by itself; closing the generator here could race with it
 
     # Updates compare Ollama digests; a marker in the data volume invalidates replicas.
+
+    async def downloaded(self) -> set[str]:
+        """Ollama model names on disk; empty when Ollama cannot be reached."""
+        try:
+            return await asyncio.to_thread(self._local_models)
+        except EngineError:
+            return set()
 
     async def cached_sha(self) -> str | None:
         return await asyncio.to_thread(self._cached_sha_of, self.model)

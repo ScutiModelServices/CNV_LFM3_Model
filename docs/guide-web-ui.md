@@ -12,8 +12,9 @@ If `SERVICE_PORT` is changed, use that port.
 ## Before you open it
 
 The page needs the admin password: the value of `SERVICE_ADMIN_PASSWORD`.
-- Docker: set it in `.env` next to `docker-compose.yml`, then `docker compose up -d`.
-- No Docker: set it in `.env` in this folder and start with `run.bat` (it passes `--dotenv`), or set it in the environment first; a real environment variable wins over `.env`. A plain `python src/app.py` does not read `.env`.
+- Docker Desktop on this device: set it in `.env.compose` next to `docker-compose.yml`, then `docker compose --env-file .env.compose up -d`.
+- Deployment device: set it in `.env` next to `docker-compose.yml` (Deploy option 2 copies it), then `docker compose up -d`.
+- No Docker: set it in `.env.local` (or `.env`) in this folder and start with `run.bat` (it passes `--dotenv`), or set it in the environment first; a real environment variable wins over both files and `.env.local` wins over `.env`. A plain `python src/app.py` reads neither.
 - Empty password = no auth at all and the page answers `Admin password required (set SERVICE_ADMIN_PASSWORD)`. Set
   one to use the page.
 
@@ -52,6 +53,10 @@ Tokens live in `tokens.json` (`SERVICE_TOKENS_FILE`). In Docker that is the `cnv
 survive `docker compose down` and rebuilds. Without Docker it is `tokens.json` in the folder the service starts from.
 Tokens are enforced only while `SERVICE_ADMIN_PASSWORD` is set.
 
+## Model variant
+
+The **Model variant** card lists the LFM3 quantizations (`Q4_K_M` up to `F16`). Each row shows the estimated memory it takes (the file size plus a margin; not measured), the download size, whether Ollama already has it, and whether it would run on the GPU or the CPU (slower). The top line shows what this machine has. A quantization that fits neither the free GPU memory nor the free RAM is greyed with the reason and cannot be chosen. When Ollama runs on another machine its memory cannot be seen, so nothing is blocked and the card says so. **Use** saves the Ollama model name; restart the service to apply it, then press Download on the Updates card if Ollama does not have it yet. The model that is already loaded counts as fitting.
+
 ## CPU threads
 
 The shared card saves and reports values from 1 to 256. These values have no effect on inference: Ollama chooses its own threads. Other replicas display the saved value within a few seconds.
@@ -59,10 +64,10 @@ The shared card saves and reports values from 1 to 256. These values have no eff
 ## Replicas and parallel requests (read-only)
 
 The tiles show replicas and parallel generations from `SERVICE_REPLICAS` and `SERVICE_OLLAMA_PARALLEL`: each replica runs that many generations at once (default 2; set it to the `OLLAMA_NUM_PARALLEL` of your Ollama).
-The muted line says **Replicas: N. Change SERVICE_REPLICAS in .env, then rebuild.** The
-page cannot change them. To change, set them in `.env`, then:
+The muted line says **Replicas: N. Change SERVICE_REPLICAS in .env.compose (or .env on the deployment device), then rebuild.** The
+page cannot change them. To change, set them in `.env.compose` (or `.env` on the deployment device), then:
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.compose up -d --build
 docker compose restart cnv_lfm3_model_lb
 ```
 `unknown` means the variable is not set, which is normal without Docker. Without Docker there is one process.
@@ -72,7 +77,7 @@ docker compose restart cnv_lfm3_model_lb
 | Symptom | Fix |
 |---|---|
 | Page does not load | Service not running, wrong port, or blocked by a firewall. Test `/health`. |
-| `Wrong admin password` | Password differs from `SERVICE_ADMIN_PASSWORD` in the running container. Recreate it after editing `.env`. |
+| `Wrong admin password` | Password differs from `SERVICE_ADMIN_PASSWORD` in the running container. Recreate it after editing `.env.compose` or `.env`. |
 | `Admin password required (set SERVICE_ADMIN_PASSWORD)` | The password is empty. Set it and restart. |
 | Token lost | Revoke it and create a new one. |
 | `/health` shows `ready: false` | The model is still loading in Ollama, Ollama is unavailable, or the model has not been pulled (see the container logs). |
@@ -92,7 +97,7 @@ The shared token UI still has a scope input, but this service refuses any projec
 
 ## Settings
 
-The **Settings** card changes options without editing `.env` or restarting: update-check interval, caches and limits, thinking (off/on), hide reasoning, and warm-up (restart). The startup model name is `SERVICE_OLLAMA_MODEL`. Each row shows where its value comes from (saved, environment or default). A value saved here beats the environment variable; **Reset** removes it. Every replica reads the shared settings file, so a change applies within a few seconds. Rows marked "applies after a restart" are read once at start. The admin password, ports, replica count and other Docker settings stay in `.env` or the compose file, because the service cannot change its own container.
+The **Settings** card changes options without editing `.env.compose`, `.env` or restarting: update-check interval, caches and limits, thinking (off/on), hide reasoning, and warm-up (restart). The startup model name is `SERVICE_OLLAMA_MODEL`. Each row shows where its value comes from (saved, environment or default). A value saved here beats the environment variable; **Reset** removes it. Every replica reads the shared settings file, so a change applies within a few seconds. Rows marked "applies after a restart" are read once at start. The admin password, ports, replica count and other Docker settings stay in `.env` or the compose file, because the service cannot change its own container.
 
 ## Updating the model files
 
@@ -122,7 +127,7 @@ The browser caps uploads at **10 MiB**, displayed text at **256 KiB**, and binar
 
 ### This service's request
 
-Chat sends messages to `POST /v1/chat`, with optional temperature, max_tokens and streaming. LFM3 rejects tools, schema and thinking with 422; its form does not send those MiniCPM-only fields.
+Chat sends messages to `POST /v1/chat`, with optional temperature, max_tokens and streaming. LFM3 rejects schema and thinking with 422; its form does not send those MiniCPM-only fields or tools (call the API for tools).
 
 ## Admin pages and navigation
 
